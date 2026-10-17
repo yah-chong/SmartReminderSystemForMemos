@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>語音備忘錄與智慧提醒系統</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome 圖標庫 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google 字體 Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        /* 錄音閃爍脈衝動畫 */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .recording-pulse {
+            animation: pulse-ring 1.5s infinite;
+        }
+        /* 自訂滾動條 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(241, 245, 249, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen pb-12">
+
+    <!-- 頂部導覽列 -->
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-slate-200/80 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+                    <i class="fa-solid fa-microphone-lines text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-slate-900 text-lg sm:text-xl leading-tight">聲筆智記</h1>
+                    <p class="text-xs text-slate-500 font-medium">語音備忘錄與智慧提醒</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="notificationPermissionBtn" onclick="requestNotificationPermission()" class="text-xs sm:text-sm px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1.5">
+                    <i class="fa-regular fa-bell text-indigo-600"></i>
+                    <span id="notificationStatusText">開啟系統通知</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+
+        <!-- 儀表板統計資訊卡片 -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3">
+                <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                    <i class="fa-solid fa-book-open text-lg"></i>
+                </div>
+                <div>
+                    <div class="text-2xl font-bold text-slate-800" id="statTotal">0</div>
+                    <div class="text-xs font-medium text-slate-500">備忘錄總數</div>
+                </div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3">
+                <div class="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                    <i class="fa-regular fa-clock text-lg"></i>
+                </div>
+                <div>
+                    <div class="text-2xl font-bold text-slate-800" id="statActiveReminders">0</div>
+                    <div class="text-xs font-medium text-slate-500">待提醒事項</div>
+                </div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3">
+                <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                    <i class="fa-solid fa-calendar-check text-lg"></i>
+                </div>
+                <div>
+                    <div class="text-2xl font-bold text-slate-800" id="statSynced">0</div>
+                    <div class="text-xs font-medium text-slate-500">有設時間的事項</div>
+                </div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3">
+                <div class="p-3 bg-rose-50 text-rose-600 rounded-xl">
+                    <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+                </div>
+                <div>
+                    <div class="text-2xl font-bold text-slate-800" id="statOverdue">0</div>
+                    <div class="text-xs font-medium text-slate-500">已過期提醒</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- 左側：語音輸入與編輯區域 (佔 5 欄) -->
+            <section class="lg:col-span-5 flex flex-col gap-6">
+                <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-base font-semibold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-pen-to-square text-indigo-600"></i> 新增備忘錄 / 會議
+                        </h2>
+                        <span id="speechSupportBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium hidden">
+                            語音識別可用
+                        </span>
+                    </div>
+
+                    <!-- 瀏覽器不支援 Web Speech API 提示 -->
+                    <div id="speechUnsupportedAlert" class="hidden mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-center gap-2">
+                        <i class="fa-solid fa-circle-info text-amber-600 text-sm"></i>
+                        <span>您的瀏覽器不支援語音轉文字功能，您仍可直接手動輸入文字。</span>
+                    </div>
+
+                    <!-- 語音控制按鈕區 -->
+                    <div class="flex flex-col items-center justify-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200 mb-4">
+                        <button id="toggleRecordBtn" onclick="toggleRecording()" class="w-16 h-16 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-lg transition-all transform active:scale-95 focus:outline-none mb-2">
+                            <i id="recordIcon" class="fa-solid fa-microphone text-2xl"></i>
+                        </button>
+                        <p id="recordStatus" class="text-xs font-medium text-slate-500">點擊按鈕開始語音錄音</p>
+                        <div id="liveStatusIndicator" class="hidden items-center gap-2 mt-2">
+                            <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                            <span class="text-xs text-red-600 font-semibold">正在聆聽中...</span>
+                        </div>
+                    </div>
+
+                    <!-- 備忘內容輸入框 -->
+                    <div class="space-y-4">
+                        <div>
+                            <label for="memoTitle" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">備忘標題 / 會議名稱</label>
+                            <input type="text" id="memoTitle" placeholder="例如：團隊週會、買牛奶、專案討論..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+                        </div>
+
+                        <div>
+                            <label for="memoContent" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">內容細節 (語音轉換文字於此)</label>
+                            <textarea id="memoContent" rows="4" placeholder="語音轉文字的內容將自動填入這裡，您也可以隨時手動編輯..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition resize-none"></textarea>
+                        </div>
+
+                        <div>
+                            <label for="memoDatetime" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">提醒 / 會議日期與時間 (可選)</label>
+                            <input type="datetime-local" id="memoDatetime" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition text-slate-700">
+                        </div>
+
+                        <div class="pt-2 flex gap-2">
+                            <button onclick="saveMemo()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-sm shadow-md shadow-indigo-100 transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                                <span>儲存備忘錄</span>
+                            </button>
+                            <button onclick="clearForm()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium rounded-xl text-sm transition">
+                                清除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 右側：備忘錄列表與篩選 (佔 7 欄) -->
+            <section class="lg:col-span-7 flex flex-col gap-4">
+                
+                <!-- 搜尋與篩選工具列 -->
+                <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div class="relative w-full sm:w-64">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                        <input type="text" id="searchInput" oninput="renderMemos()" placeholder="搜尋備忘錄關鍵字..." class="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+                    </div>
+                    
+                    <div class="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                        <select id="statusFilter" onchange="renderMemos()" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="all">全部備忘錄</option>
+                            <option value="pending">待提醒</option>
+                            <option value="overdue">已過期</option>
+                            <option value="none">無提醒日期</option>
+                        </select>
+
+                        <button onclick="clearAllMemos()" class="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-3 py-2 rounded-xl transition font-medium border border-transparent hover:border-rose-100">
+                            清空全部
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 備忘錄卡片清單列表 -->
+                <div id="memoList" class="space-y-3">
+                    <!-- 動態由 JavaScript 填入 -->
+                </div>
+
+            </section>
+
+        </div>
+    </main>
+
+    <!-- 編輯 Modal 彈窗 -->
+    <div id="editModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100 transform transition-all">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-800 text-lg">編輯備忘錄</h3>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <input type="hidden" id="editMemoId">
+            <div class="space-y-4">
+                <div>
+                    <label for="editMemoTitle" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">標題</label>
+                    <input type="text" id="editMemoTitle" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label for="editMemoContent" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">內容</label>
+                    <textarea id="editMemoContent" rows="4" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+                </div>
+                <div>
+                    <label for="editMemoDatetime" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">提醒日期與時間</label>
+                    <input type="datetime-local" id="editMemoDatetime" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-6">
+                <button onclick="closeEditModal()" class="px-4 py-2 bg-slate-100 text-slate-600 text-sm font-medium rounded-xl hover:bg-slate-200 transition">取消</button>
+                <button onclick="saveEditModal()" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 transition">儲存修改</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自訂通知 Modal / 提示框 -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+        <span id="toastMessage" class="text-sm font-medium">提示訊息</span>
+    </div>
+
+    <!-- JavaScript 邏輯程式碼 -->
+    <script>
+        // 全域變數定義
+        let memos = JSON.parse(localStorage.getItem('voice_memos_data')) || [];
+        let recognition = null;
+        let isRecording = false;
+        let reminderCheckInterval = null;
+
+        // 初始化頁面
+        window.onload = function() {
+            initSpeechRecognition();
+            renderMemos();
+            startReminderChecker();
+            checkNotificationStatus();
+        };
+
+        // 1. 初始化 Web Speech API
+        function initSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const supportBadge = document.getElementById('speechSupportBadge');
+            const alertBox = document.getElementById('speechUnsupportedAlert');
+
+            if (SpeechRecognition) {
+                recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'zh-TW'; // 設定繁體中文
+
+                supportBadge.classList.remove('hidden');
+
+                recognition.onresult = function(event) {
+                    let transcript = '';
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        transcript += event.results[i][0].transcript;
+                    }
+                    const contentArea = document.getElementById('memoContent');
+                    contentArea.value = transcript;
+                };
+
+                recognition.onerror = function(event) {
+                    console.error('語音辨識錯誤:', event.error);
+                    stopRecording();
+                    showToast('語音辨識發生錯誤：' + event.error, 'error');
+                };
+
+                recognition.onend = function() {
+                    if (isRecording) {
+                        // 若還處於錄音狀態但自動中斷，嘗試重新啟動
+                        try {
+                            recognition.start();
+                        } catch(e) {
+                            stopRecording();
+                        }
+                    }
+                };
+            } else {
+                alertBox.classList.remove('hidden');
+                document.getElementById('toggleRecordBtn').disabled = true;
+                document.getElementById('toggleRecordBtn').classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        // 開啟/停止錄音開關
+        function toggleRecording() {
+            if (!recognition) {
+                showToast('您的瀏覽器不支援語音辨識', 'error');
+                return;
+            }
+
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        }
+
+        function startRecording() {
+            try {
+                recognition.start();
+                isRecording = true;
+                const btn = document.getElementById('toggleRecordBtn');
+                const icon = document.getElementById('recordIcon');
+                const status = document.getElementById('recordStatus');
+                const indicator = document.getElementById('liveStatusIndicator');
+
+                btn.classList.add('bg-red-500', 'recording-pulse');
+                btn.classList.remove('bg-indigo-600');
+                icon.className = 'fa-solid fa-square text-xl'; // 變更為停止圖標
+                status.innerText = '正在錄音中... 再次點擊結束';
+                indicator.classList.remove('hidden');
+                indicator.classList.add('flex');
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        function stopRecording() {
+            if (recognition) {
+                recognition.stop();
+            }
+            isRecording = false;
+            const btn = document.getElementById('toggleRecordBtn');
+            const icon = document.getElementById('recordIcon');
+            const status = document.getElementById('recordStatus');
+            const indicator = document.getElementById('liveStatusIndicator');
+
+            btn.classList.remove('bg-red-500', 'recording-pulse');
+            btn.classList.add('bg-indigo-600');
+            icon.className = 'fa-solid fa-microphone text-2xl';
+            status.innerText = '點擊按鈕開始語音錄音';
+            indicator.classList.add('hidden');
+            indicator.classList.remove('flex');
+        }
+
+        // 2. CRUD 備忘錄管理
+        function saveMemo() {
+            const titleInput = document.getElementById('memoTitle');
+            const contentInput = document.getElementById('memoContent');
+            const datetimeInput = document.getElementById('memoDatetime');
+
+            const title = titleInput.value.trim();
+            const content = contentInput.value.trim();
+            const datetime = datetimeInput.value;
+
+            if (!title && !content) {
+                showToast('請輸入標題或語音內容！', 'error');
+                return;
+            }
+
+            // 若有錄音中先停止
+            if (isRecording) stopRecording();
+
+            const newMemo = {
+                id: Date.now().toString(),
+                title: title || '無標題備忘',
+                content: content,
+                datetime: datetime || null,
+                createdAt: new Date().toISOString(),
+                triggered: false
+            };
+
+            memos.unshift(newMemo);
+            saveToLocalStorage();
+            renderMemos();
+            clearForm();
+            showToast('備忘錄已成功儲存！', 'success');
+        }
+
+        function deleteMemo(id) {
+            memos = memos.filter(m => m.id !== id);
+            saveToLocalStorage();
+            renderMemos();
+            showToast('已刪除該筆備忘錄', 'info');
+        }
+
+        function clearAllMemos() {
+            if (memos.length === 0) return;
+            if (confirm('確定要清空所有的備忘錄紀錄嗎？')) {
+                memos = [];
+                saveToLocalStorage();
+                renderMemos();
+                showToast('已清空所有備忘錄', 'info');
+            }
+        }
+
+        function copyMemoText(text) {
+            // 使用可兼容 iFrame 的複製文字方式
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast('已複製內容至剪貼簿！', 'success');
+        }
+
+        function clearForm() {
+            document.getElementById('memoTitle').value = '';
+            document.getElementById('memoContent').value = '';
+            document.getElementById('memoDatetime').value = '';
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('voice_memos_data', JSON.stringify(memos));
+        }
+
+        // 3. 渲染備忘錄與畫面更新
+        function renderMemos() {
+            const listContainer = document.getElementById('memoList');
+            const searchKeyword = document.getElementById('searchInput').value.toLowerCase();
+            const filterValue = document.getElementById('statusFilter').value;
+
+            const now = new Date();
+
+            // 統計計算
+            let activeCount = 0;
+            let syncedCount = 0;
+            let overdueCount = 0;
+
+            memos.forEach(m => {
+                if (m.datetime) {
+                    syncedCount++;
+                    const memoDate = new Date(m.datetime);
+                    if (memoDate < now && !m.triggered) {
+                        overdueCount++;
+                    } else if (memoDate >= now) {
+                        activeCount++;
+                    }
+                }
+            });
+
+            document.getElementById('statTotal').innerText = memos.length;
+            document.getElementById('statActiveReminders').innerText = activeCount;
+            document.getElementById('statSynced').innerText = syncedCount;
+            document.getElementById('statOverdue').innerText = overdueCount;
+
+            // 篩選過濾邏輯
+            let filtered = memos.filter(m => {
+                const matchSearch = m.title.toLowerCase().includes(searchKeyword) || 
+                                    m.content.toLowerCase().includes(searchKeyword);
+                
+                if (!matchSearch) return false;
+
+                if (filterValue === 'all') return true;
+                if (filterValue === 'none') return !m.datetime;
+                
+                if (m.datetime) {
+                    const mDate = new Date(m.datetime);
+                    if (filterValue === 'pending') return mDate >= now;
+                    if (filterValue === 'overdue') return mDate < now;
+                }
+                return false;
+            });
+
+            if (filtered.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="bg-white rounded-2xl p-8 text-center border border-slate-100">
+                        <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400 mb-3">
+                            <i class="fa-regular fa-folder-open text-xl"></i>
+                        </div>
+                        <p class="text-sm font-medium text-slate-500">尚無符合條件的備忘錄</p>
+                    </div>
+                `;
+                return;
+            }
+
+            listContainer.innerHTML = filtered.map(memo => {
+                // 時間與狀態處理
+                let statusBadge = '';
+                let datetimeText = '無設定提醒';
+                
+                if (memo.datetime) {
+                    const mDate = new Date(memo.datetime);
+                    datetimeText = formatDatetime(memo.datetime);
+                    
+                    if (mDate < now) {
+                        statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-700">已過期</span>`;
+                    } else {
+                        statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">待提醒</span>`;
+                    }
+                } else {
+                    statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">無時間</span>`;
+                }
+
+                // 生成 Google Calendar 連結
+                const gCalUrl = generateGoogleCalendarUrl(memo);
+
+                return `
+                    <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md transition group">
+                        <div class="flex items-start justify-between gap-2 mb-2">
+                            <h3 class="font-bold text-slate-800 text-base leading-snug break-all">${escapeHtml(memo.title)}</h3>
+                            <div class="flex items-center gap-1">
+                                ${statusBadge}
+                            </div>
+                        </div>
+
+                        ${memo.content ? `<p class="text-xs text-slate-600 mb-3 leading-relaxed whitespace-pre-wrap break-all">${escapeHtml(memo.content)}</p>` : ''}
+
+                        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-50 text-xs text-slate-400">
+                            <div class="flex items-center gap-1.5 text-slate-500 font-medium">
+                                <i class="fa-regular fa-calendar text-indigo-500"></i>
+                                <span>${datetimeText}</span>
+                            </div>
+
+                            <div class="flex items-center gap-1">
+                                ${memo.datetime ? `
+                                    <a href="${gCalUrl}" target="_blank" title="加入 Google 日曆" class="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium transition flex items-center gap-1">
+                                        <i class="fa-brands fa-google"></i>
+                                        <span class="hidden sm:inline">加至日曆</span>
+                                    </a>
+                                ` : ''}
+                                
+                                <button onclick="copyMemoText('${escapeJsString(memo.content || memo.title)}')" title="複製文字" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition">
+                                    <i class="fa-regular fa-copy"></i>
+                                </button>
+                                
+                                <button onclick="openEditModal('${memo.id}')" title="編輯備忘" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition">
+                                    <i class="fa-regular fa-pen-to-square"></i>
+                                </button>
+
+                                <button onclick="deleteMemo('${memo.id}')" title="刪除" class="p-1.5 hover:bg-rose-50 rounded-lg text-rose-500 transition">
+                                    <i class="fa-regular fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 4. Google 日曆動態網址生成 (Google Calendar Web URL)
+        function generateGoogleCalendarUrl(memo) {
+            const title = encodeURIComponent(memo.title || '備忘錄提醒');
+            const details = encodeURIComponent(memo.content || '');
+            
+            let dateParam = '';
+            if (memo.datetime) {
+                const startDate = new Date(memo.datetime);
+                // 預設活動時間 30 分鐘
+                const endDate = new Date(startDate.getTime() + 30 * 60 * 1000);
+                
+                const startIso = startDate.toISOString().replace(/-|:|\.\d\d\d/g, "");
+                const endIso = endDate.toISOString().replace(/-|:|\.\d\d\d/g, "");
+                dateParam = `&dates=${startIso}/${endIso}`;
+            }
+
+            return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}${dateParam}`;
+        }
+
+        // 5. 智慧提醒與桌面通知
+        function startReminderChecker() {
+            // 每 10 秒檢查一次是否有到達時間的提醒
+            reminderCheckInterval = setInterval(() => {
+                const now = new Date();
+                
+                memos.forEach(memo => {
+                    if (memo.datetime && !memo.triggered) {
+                        const reminderTime = new Date(memo.datetime);
+                        // 當前時間已到達或超過提醒時間 (1分鐘緩衝)
+                        if (now >= reminderTime && (now - reminderTime) < 60000) {
+                            triggerNotification(memo);
+                            memo.triggered = true;
+                            saveToLocalStorage();
+                            renderMemos();
+                        }
+                    }
+                });
+            }, 10000);
+        }
+
+        function triggerNotification(memo) {
+            // 播放提醒音效
+            playChimeSound();
+
+            // 發送瀏覽器桌面通知
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(`⏰ 備忘提醒：${memo.title}`, {
+                    body: memo.content || '您預訂的提醒時間已到！',
+                    icon: 'https://cdn-icons-png.flaticon.com/512/3602/3602145.png'
+                });
+            }
+
+            // 彈出應用內提示
+            showToast(`⏰ 提醒時間到：${memo.title}`, 'warning');
+        }
+
+        function requestNotificationPermission() {
+            if (!('Notification' in window)) {
+                showToast('您的瀏覽器不支援桌面通知', 'error');
+                return;
+            }
+
+            Notification.requestPermission().then(permission => {
+                checkNotificationStatus();
+                if (permission === 'granted') {
+                    showToast('已成功開啟桌面通知權限！', 'success');
+                } else {
+                    showToast('通知權限被拒絕', 'error');
+                }
+            });
+        }
+
+        function checkNotificationStatus() {
+            const statusText = document.getElementById('notificationStatusText');
+            if ('Notification' in window) {
+                if (Notification.permission === 'granted') {
+                    statusText.innerText = '通知已開啟';
+                } else if (Notification.permission === 'denied') {
+                    statusText.innerText = '通知已禁用';
+                } else {
+                    statusText.innerText = '開啟系統通知';
+                }
+            }
+        }
+
+        // 簡短提示音效生成 (AudioContext)
+        function playChimeSound() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                const ctx = new AudioContext();
+                
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+                osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15); // A5
+                
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                osc.start();
+                osc.stop(ctx.currentTime + 0.8);
+            } catch(e) {
+                console.log('Audio Context Error:', e);
+            }
+        }
+
+        // 6. 編輯 Modal 邏輯
+        function openEditModal(id) {
+            const memo = memos.find(m => m.id === id);
+            if (!memo) return;
+
+            document.getElementById('editMemoId').value = memo.id;
+            document.getElementById('editMemoTitle').value = memo.title;
+            document.getElementById('editMemoContent').value = memo.content || '';
+            document.getElementById('editMemoDatetime').value = memo.datetime || '';
+
+            const modal = document.getElementById('editModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeEditModal() {
+            const modal = document.getElementById('editModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function saveEditModal() {
+            const id = document.getElementById('editMemoId').value;
+            const memo = memos.find(m => m.id === id);
+
+            if (memo) {
+                memo.title = document.getElementById('editMemoTitle').value.trim() || '無標題備忘';
+                memo.content = document.getElementById('editMemoContent').value.trim();
+                const newDatetime = document.getElementById('editMemoDatetime').value;
+                
+                if (memo.datetime !== newDatetime) {
+                    memo.datetime = newDatetime || null;
+                    memo.triggered = false; // 重置提醒觸發狀態
+                }
+
+                saveToLocalStorage();
+                renderMemos();
+                closeEditModal();
+                showToast('備忘錄已更新！', 'success');
+            }
+        }
+
+        // 輔助函式 (Toast & 日期格式化)
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.innerText = msg;
+
+            if (type === 'success') {
+                toastIcon.className = 'fa-solid fa-circle-check text-emerald-400 text-lg';
+            } else if (type === 'error') {
+                toastIcon.className = 'fa-solid fa-circle-xmark text-rose-400 text-lg';
+            } else if (type === 'warning') {
+                toastIcon.className = 'fa-solid fa-bell text-amber-400 text-lg';
+            } else {
+                toastIcon.className = 'fa-solid fa-circle-info text-blue-400 text-lg';
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function formatDatetime(dtStr) {
+            if (!dtStr) return '';
+            const dt = new Date(dtStr);
+            const year = dt.getFullYear();
+            const month = String(dt.getMonth() + 1).padStart(2, '0');
+            const date = String(dt.getDate()).padStart(2, '0');
+            const hours = String(dt.getHours()).padStart(2, '0');
+            const mins = String(dt.getMinutes()).padStart(2, '0');
+            return `${year}/${month}/${date} ${hours}:${mins}`;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;")
+                      .replace(/</g, "&lt;")
+                      .replace(/>/g, "&progt;")
+                      .replace(/"/g, "&quot;")
+                      .replace(/'/g, "&#039;");
+        }
+
+        function escapeJsString(str) {
+            if (!str) return '';
+            return str.replace(/\\/g, '\\\\')
+                      .replace(/'/g, "\\'")
+                      .replace(/"/g, '\\"')
+                      .replace(/\n/g, '\\n');
+        }
+    </script>
+</body>
+</html>
