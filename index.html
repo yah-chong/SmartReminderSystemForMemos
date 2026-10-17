@@ -2,469 +2,309 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <title>老人專用大字語音備忘錄</title>
-    <!-- Tailwind CSS CDN -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>長輩專用大字版語音備忘錄</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome 圖標 -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <style>
-        /* 極大字體基底 (老花眼友善) */
-        html {
+        /* 基礎字體放大與高對比設定 */
+        body {
             font-size: 22px;
+            background-color: #ffffff;
+            color: #000000;
         }
-
-        /* 超顯眼錄音閃爍 */
-        @keyframes pulse-recording {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.9); }
-            50% { transform: scale(1.03); box-shadow: 0 0 0 16px rgba(220, 38, 38, 0); }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+        .large-btn {
+            min-height: 64px;
+            font-size: 24px;
+            font-weight: bold;
+            border: 3px solid #000000;
+            border-radius: 12px;
         }
-        .recording-active {
-            animation: pulse-recording 1.2s infinite;
+        .record-btn {
+            min-height: 88px;
+            font-size: 28px;
+            font-weight: bold;
+            border: 4px solid #000000;
+            border-radius: 16px;
         }
-
-        /* 確保所有輸入框與按鈕皆為大字體與高對比黑邊 */
-        input, textarea, button, select {
-            font-size: 1.1rem !important;
+        input, textarea, select {
+            font-size: 22px !important;
+            border: 3px solid #000000 !important;
+            border-radius: 10px !important;
+            padding: 12px !important;
         }
     </style>
 </head>
-<body class="bg-amber-50 text-black min-h-screen pb-12 font-sans antialiased">
+<body class="bg-white text-black p-4 max-w-xl mx-auto">
 
-    <!-- 頂部標題區 -->
-    <header class="bg-black text-yellow-400 py-3 px-4 border-b-8 border-yellow-400 sticky top-0 z-30 shadow-md">
-        <div class="max-w-2xl mx-auto flex items-center justify-between">
-            <h1 class="text-2xl sm:text-3xl font-black tracking-wide flex items-center gap-2">
-                <i class="fa-solid fa-microphone text-yellow-400"></i> 大字語音備忘錄
-            </h1>
-            <button onclick="requestNotificationPermission()" class="bg-yellow-400 text-black px-3 py-1.5 rounded-xl font-black text-sm border-2 border-white active:scale-95">
-                <i class="fa-solid fa-bell"></i> 開啟提醒
-            </button>
+    <!-- 頂部標題與字體縮放控制 -->
+    <header class="flex justify-between items-center mb-4 pb-2 border-b-4 border-black">
+        <h1 class="text-3xl font-black">📝 語音備忘錄</h1>
+        <div class="flex gap-2">
+            <button onclick="adjustFontSize(2)" class="bg-gray-200 border-2 border-black px-4 py-2 font-bold text-xl rounded-lg">➕ 放大</button>
+            <button onclick="adjustFontSize(-2)" class="bg-gray-200 border-2 border-black px-4 py-2 font-bold text-xl rounded-lg">➖ 縮小</button>
         </div>
     </header>
 
-    <main class="max-w-2xl mx-auto px-3 py-4 space-y-5">
+    <!-- 5. 單行屏幕狀態列：全部備忘、待提醒、已過期 -->
+    <section class="grid grid-cols-3 gap-2 mb-6 text-center">
+        <div class="bg-yellow-100 border-3 border-black p-3 rounded-xl font-bold">
+            <div class="text-lg">全部備忘</div>
+            <div id="stat-total" class="text-3xl">0</div>
+        </div>
+        <div class="bg-green-100 border-3 border-black p-3 rounded-xl font-bold">
+            <div class="text-lg">待提醒</div>
+            <div id="stat-pending" class="text-3xl">0</div>
+        </div>
+        <div class="bg-red-100 border-3 border-black p-3 rounded-xl font-bold">
+            <div class="text-lg">已過期</div>
+            <div id="stat-expired" class="text-3xl">0</div>
+        </div>
+    </section>
 
-        <!-- 需求 5: 全部備忘、待提醒項與已過期提醒，顯示在同一行的屏幕上 -->
-        <div class="bg-white rounded-2xl border-4 border-black p-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <div class="grid grid-cols-3 gap-1 text-center font-black">
-                <div class="bg-blue-100 p-2 rounded-xl border-2 border-black">
-                    <div class="text-xs text-blue-900">全部備忘</div>
-                    <div class="text-2xl text-blue-900" id="statTotal">0</div>
-                </div>
-                <div class="bg-yellow-200 p-2 rounded-xl border-2 border-black">
-                    <div class="text-xs text-yellow-950">待提醒</div>
-                    <div class="text-2xl text-yellow-950" id="statPending">0</div>
-                </div>
-                <div class="bg-red-200 p-2 rounded-xl border-2 border-black">
-                    <div class="text-xs text-red-950">已過期</div>
-                    <div class="text-2xl text-red-950" id="statOverdue">0</div>
-                </div>
-            </div>
+    <!-- 錄音與手動輸入區 -->
+    <section class="mb-6 bg-gray-50 p-4 border-3 border-black rounded-2xl shadow-md">
+        <button id="record-btn" onclick="toggleRecord()" class="record-btn w-full bg-red-500 text-white mb-4 flex items-center justify-center gap-3">
+            🎤 <span>按下開始說話</span>
+        </button>
+        
+        <div class="mb-4">
+            <label class="block font-bold mb-2">備忘內容（可直接手動修改）：</label>
+            <textarea id="memo-input" rows="3" class="w-full" placeholder="點擊上方按鈕開始語音輸入，或在此打字..."></textarea>
         </div>
 
-        <!-- 需求 3 & 7: 錄音與輸入區 (極簡、大按鈕、高對比) -->
-        <section class="bg-white rounded-3xl p-4 sm:p-5 border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] space-y-4">
+        <div class="mb-4">
+            <label class="block font-bold mb-2">預定提醒時間（選填）：</label>
+            <input type="datetime-local" id="memo-time" class="w-full">
+        </div>
+
+        <button onclick="saveMemo()" class="large-btn w-full bg-blue-600 text-white">
+            💾 儲存備忘錄
+        </button>
+    </section>
+
+    <hr class="border-t-4 border-black my-6">
+
+    <!-- 6. 備忘錄列表（緊逐條顯示在後方） -->
+    <section>
+        <h2 class="text-2xl font-black mb-4">📋 您的備忘錄清單</h2>
+        <div id="memo-list" class="space-y-4">
+            <!-- 動態插入備忘錄卡片 -->
+        </div>
+    </section>
+
+    <!-- 提醒與 Google 日曆設定彈窗 -->
+    <div id="reminder-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center p-4">
+        <div class="bg-white border-4 border-black p-6 rounded-2xl w-full max-w-md">
+            <h3 class="text-2xl font-black mb-4">🔔 設定提醒與日曆</h3>
+            <p id="modal-memo-text" class="mb-4 text-xl bg-yellow-50 p-3 border-2 border-black rounded-xl"></p>
             
-            <!-- 超大錄音按鈕 -->
-            <button id="recordBtn" onclick="toggleRecording()" class="w-full h-20 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-black text-2xl rounded-2xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center gap-3 transition">
-                <i id="recordIcon" class="fa-solid fa-microphone text-3xl"></i>
-                <span id="recordText">🎤 按下開始說話</span>
-            </button>
-
-            <div id="recordingStatus" class="hidden text-center text-red-700 font-black text-lg animate-bounce">
-                正在聽您說話，說完請再點一次按鈕...
+            <div class="mb-4">
+                <label class="block font-bold mb-2">調整時間：</label>
+                <input type="datetime-local" id="modal-time-input" class="w-full">
             </div>
 
-            <!-- 文字顯示/編輯區 -->
-            <div>
-                <label for="memoInput" class="block font-black text-black text-lg mb-1">
-                    說話內容 (也可直接用打字)：
-                </label>
-                <textarea id="memoInput" rows="3" placeholder="按上方紅色按鈕開始說話，內容會顯示在這裡..." class="w-full p-3 bg-amber-50 border-3 border-black rounded-xl font-bold text-black focus:outline-none focus:ring-4 focus:ring-yellow-400 placeholder:text-slate-500 resize-y"></textarea>
-            </div>
-
-            <!-- 儲存按鈕 -->
-            <button onclick="saveMemo()" class="w-full h-16 bg-blue-700 hover:bg-blue-800 active:scale-95 text-white font-black text-2xl rounded-2xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center gap-2 transition">
-                <i class="fa-solid fa-floppy-disk"></i>
-                <span>💾 儲存備忘錄</span>
-            </button>
-
-        </section>
-
-        <!-- 需求 6: 備忘錄緊逐條顯示在大致語音備忘錄的後方 -->
-        <section class="space-y-3">
-            <h2 class="text-xl font-black text-black flex items-center gap-2 pl-1">
-                <i class="fa-solid fa-list text-2xl"></i> 我的備忘錄列表：
-            </h2>
-
-            <!-- 備忘錄列表容器 -->
-            <div id="memoList" class="space-y-4">
-                <!-- 由 JS 動態繪製 -->
-            </div>
-        </section>
-
-    </main>
-
-    <!-- 時間提醒設定 Modal (點擊 🔔 設定提醒 時跳出) -->
-    <div id="reminderModal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-3">
-        <div class="bg-white rounded-3xl max-w-md w-full p-5 border-4 border-black shadow-2xl space-y-4">
-            <div class="flex justify-between items-center border-b-4 border-black pb-2">
-                <h3 class="font-black text-2xl text-black">⏰ 設定提醒時間</h3>
-                <button onclick="closeReminderModal()" class="w-10 h-10 bg-slate-200 rounded-xl border-2 border-black font-black text-xl">✕</button>
-            </div>
-
-            <input type="hidden" id="currentMemoId">
-
-            <div>
-                <label for="reminderDatetime" class="block font-black text-black mb-1">選擇提醒日期與時間：</label>
-                <input type="datetime-local" id="reminderDatetime" class="w-full p-3 bg-amber-50 border-3 border-black rounded-xl font-bold text-black min-h-[55px]">
-            </div>
-
-            <div class="space-y-2 pt-2">
-                <!-- 儲存提醒按鈕 -->
-                <button onclick="saveReminderSetting()" class="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xl rounded-xl border-3 border-black active:scale-95">
-                    保 存 提 醒
-                </button>
-
-                <!-- 一鍵加到 Google 日曆 -->
-                <button onclick="addToGoogleCalendar()" class="w-full h-14 bg-blue-100 hover:bg-blue-200 text-blue-950 font-black text-lg rounded-xl border-3 border-black flex items-center justify-center gap-2 active:scale-95">
-                    <i class="fa-brands fa-google text-xl text-blue-700"></i>
-                    <span>加到 Google 日曆</span>
-                </button>
-
-                <!-- 清除提醒 -->
-                <button onclick="clearReminderSetting()" class="w-full h-12 bg-slate-200 text-black font-bold text-base rounded-xl border-2 border-black">
-                    取消/清除提醒時間
-                </button>
+            <div class="flex flex-col gap-3">
+                <button onclick="confirmSetReminder()" class="large-btn bg-green-600 text-white">✅ 確認並同步 Google 日曆</button>
+                <button onclick="closeModal()" class="large-btn bg-gray-300 text-black">❌ 取消</button>
             </div>
         </div>
-    </div>
-
-    <!-- 訊息提示 Toast -->
-    <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-black text-yellow-300 px-5 py-3 rounded-2xl border-4 border-yellow-400 shadow-2xl text-center font-black text-lg transform translate-y-28 opacity-0 transition-all duration-300 z-50 max-w-[90vw]">
-        <span id="toastMsg">提示訊息</span>
     </div>
 
     <script>
-        // 資料狀態 (儲存於 localStorage)
-        let memos = JSON.parse(localStorage.getItem('elderly_voice_memos_v2')) || [];
+        let memos = JSON.parse(localStorage.getItem('elder_memos') || '[]');
+        let currentEditingId = null;
         let recognition = null;
         let isRecording = false;
 
-        window.onload = function() {
-            initSpeech();
-            renderMemos();
-            startReminderTimer();
-        };
-
-        // 1. 語音辨識 (Web Speech API)
-        function initSpeech() {
+        // 初始化語音辨識
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (SpeechRecognition) {
-                recognition = new SpeechRecognition();
-                recognition.continuous = true;
-                recognition.interimResults = true;
-                recognition.lang = 'zh-TW';
+            recognition = new SpeechRecognition();
+            recognition.lang = 'zh-TW';
+            recognition.continuous = false;
+            recognition.interimResults = true;
 
-                recognition.onresult = function(event) {
-                    let transcript = '';
-                    for (let i = event.resultIndex; i < event.results.length; i++) {
-                        transcript += event.results[i][0].transcript;
-                    }
-                    document.getElementById('memoInput').value = transcript;
-                };
+            recognition.onresult = (event) => {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                document.getElementById('memo-input').value = transcript;
+            };
 
-                recognition.onerror = function(e) {
-                    stopRecording();
-                    showToast('語音辨識出錯，請重試');
-                };
-
-                recognition.onend = function() {
-                    if (isRecording) stopRecording();
-                };
-            }
+            recognition.onend = () => {
+                isRecording = false;
+                const btn = document.getElementById('record-btn');
+                btn.innerHTML = '🎤 <span>按下開始說話</span>';
+                btn.classList.remove('bg-yellow-400', 'animate-pulse');
+                btn.classList.add('bg-red-500');
+            };
         }
 
-        function toggleRecording() {
+        function toggleRecord() {
             if (!recognition) {
-                alert('您的瀏覽器不支援語音辨識，請直接打字輸入！');
+                alert('您的瀏覽器不支援語音辨識功能，請直接使用鍵盤輸入。');
                 return;
             }
-
-            if (isRecording) {
-                stopRecording();
-            } else {
-                startRecording();
-            }
-        }
-
-        function startRecording() {
-            try {
+            const btn = document.getElementById('record-btn');
+            if (!isRecording) {
                 recognition.start();
                 isRecording = true;
-                const btn = document.getElementById('recordBtn');
-                btn.classList.remove('bg-red-600');
-                btn.classList.add('bg-black', 'text-yellow-400', 'recording-active');
-                document.getElementById('recordText').innerText = '⏹️ 停止錄音 (講完了)';
-                document.getElementById('recordingStatus').classList.remove('hidden');
-            } catch(e) {
-                console.error(e);
+                btn.innerHTML = '🔴 <span>正在聆聽中... (再按一次停止)</span>';
+                btn.classList.remove('bg-red-500');
+                btn.classList.add('bg-yellow-400', 'animate-pulse');
+            } else {
+                recognition.stop();
+                isRecording = false;
             }
         }
 
-        function stopRecording() {
-            if (recognition) recognition.stop();
-            isRecording = false;
-            const btn = document.getElementById('recordBtn');
-            btn.classList.add('bg-red-600');
-            btn.classList.remove('bg-black', 'text-yellow-400', 'recording-active');
-            document.getElementById('recordText').innerText = '🎤 按下開始說話';
-            document.getElementById('recordingStatus').classList.add('hidden');
-        }
-
-        // 2. 備忘錄新增與儲存
         function saveMemo() {
-            const input = document.getElementById('memoInput');
-            const text = input.value.trim();
+            const text = document.getElementById('memo-input').value.trim();
+            const time = document.getElementById('memo-time').value;
 
             if (!text) {
-                alert('請先說話或輸入備忘內容！');
+                alert('請先輸入或說出備忘內容！');
                 return;
             }
 
-            if (isRecording) stopRecording();
-
             const newMemo = {
-                id: Date.now().toString(),
-                content: text,
-                datetime: null, // 預設無提醒
-                triggered: false
+                id: Date.now(),
+                text: text,
+                time: time || null,
+                created: new Date().toLocaleString()
             };
 
             memos.unshift(newMemo);
-            saveData();
-            renderMemos();
-            input.value = '';
-            showToast('已儲存備忘錄！');
+            syncAndRender();
+
+            // 清空輸入
+            document.getElementById('memo-input').value = '';
+            document.getElementById('memo-time').value = '';
+            alert('💾 備忘錄已成功儲存！');
         }
 
-        // 需求 6: 刪除按鈕必須有再確認後再刪除的功能
-        function confirmDeleteMemo(id) {
-            const isConfirmed = confirm('⚠️ 確定要刪除這條備忘錄嗎？');
-            if (isConfirmed) {
+        // 6. 刪除按鈕必須有再確認後再刪除的功能
+        function deleteMemo(id) {
+            if (confirm('⚠️ 請問您確定要刪除這筆備忘錄嗎？刪除後無法復原。')) {
                 memos = memos.filter(m => m.id !== id);
-                saveData();
-                renderMemos();
-                showToast('已刪除備忘錄');
+                syncAndRender();
             }
         }
 
-        // 3. 備忘錄渲染 (嚴格符合 6：內容 + 提醒時間 + 2個按鈕)
-        function renderMemos() {
-            const list = document.getElementById('memoList');
-            const now = new Date();
+        function openReminderModal(id) {
+            currentEditingId = id;
+            const memo = memos.find(m => m.id === id);
+            if (!memo) return;
 
-            let pendingCount = 0;
-            let overdueCount = 0;
+            document.getElementById('modal-memo-text').innerText = memo.text;
+            document.getElementById('modal-time-input').value = memo.time || '';
+            document.getElementById('reminder-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('reminder-modal').classList.add('hidden');
+            currentEditingId = null;
+        }
+
+        function confirmSetReminder() {
+            const newTime = document.getElementById('modal-time-input').value;
+            const memo = memos.find(m => m.id === currentEditingId);
+            if (memo) {
+                memo.time = newTime;
+                syncAndRender();
+                closeModal();
+
+                if (newTime) {
+                    // 自動產生 Google 日曆連結並引導加入
+                    const title = encodeURIComponent(memo.text);
+                    const dt = newTime.replace(/[-:]/g, '');
+                    const gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dt}/${dt}`;
+                    
+                    if (confirm('✅ 提醒時間已更新！是否立即將此行程加入您的 Google 日曆？')) {
+                        window.open(gCalUrl, '_blank');
+                    }
+                }
+            }
+        }
+
+        function syncAndRender() {
+            localStorage.setItem('elder_memos', JSON.stringify(memos));
+            renderMemos();
+            updateStats();
+        }
+
+        function updateStats() {
+            const total = memos.length;
+            const now = new Date();
+            let pending = 0;
+            let expired = 0;
 
             memos.forEach(m => {
-                if (m.datetime) {
-                    const dt = new Date(m.datetime);
-                    if (dt < now) overdueCount++;
-                    else pendingCount++;
+                if (!m.time) return;
+                const memoTime = new Date(m.time);
+                if (memoTime > now) {
+                    pending++;
+                } else {
+                    expired++;
                 }
             });
 
-            // 更新需求 5 的單行統計
-            document.getElementById('statTotal').innerText = memos.length;
-            document.getElementById('statPending').innerText = pendingCount;
-            document.getElementById('statOverdue').innerText = overdueCount;
+            document.getElementById('stat-total').innerText = total;
+            document.getElementById('stat-pending').innerText = pending;
+            document.getElementById('stat-expired').innerText = expired;
+        }
 
+        function renderMemos() {
+            const listEl = document.getElementById('memo-list');
             if (memos.length === 0) {
-                list.innerHTML = `
-                    <div class="bg-white rounded-2xl p-6 text-center border-4 border-black text-slate-600 font-black text-xl">
-                        目前沒有備忘錄，請按上方紅色按鈕新增！
-                    </div>
-                `;
+                listEl.innerHTML = '<div class="text-center p-6 bg-gray-50 border-2 border-black rounded-xl font-bold">目前沒有任何備忘錄</div>';
                 return;
             }
 
-            list.innerHTML = memos.map(memo => {
+            const now = new Date();
+            listEl.innerHTML = memos.map(m => {
                 let timeBadge = '';
-                if (memo.datetime) {
-                    const dt = new Date(memo.datetime);
-                    const isOverdue = dt < now;
-                    const formattedTime = formatDatetime(memo.datetime);
-
-                    if (isOverdue) {
-                        timeBadge = `<div class="inline-block bg-red-600 text-white font-black text-base px-3 py-1 rounded-xl border-2 border-black mb-2">⏰ 已過期：${formattedTime}</div>`;
-                    } else {
-                        timeBadge = `<div class="inline-block bg-yellow-300 text-black font-black text-base px-3 py-1 rounded-xl border-2 border-black mb-2">⏰ 提醒：${formattedTime}</div>`;
-                    }
+                if (m.time) {
+                    const isExp = new Date(m.time) <= now;
+                    timeBadge = `<div class="mt-2 text-lg font-bold ${isExp ? 'text-red-600' : 'text-blue-700'}">⏰ 提醒時間：${m.time.replace('T', ' ')} ${isExp ? '(已過期)' : ''}</div>`;
                 }
 
                 return `
-                    <div class="bg-white rounded-3xl p-4 sm:p-5 border-4 border-black shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] space-y-3">
-                        
-                        <!-- 提醒標籤 -->
+                    <div class="bg-yellow-50 border-3 border-black p-4 rounded-2xl shadow-sm">
+                        <div class="text-2xl font-bold mb-2">${escapeHtml(m.text)}</div>
+                        <div class="text-sm text-gray-600 mb-2">建立時間：${m.created}</div>
                         ${timeBadge}
-
-                        <!-- 文字內容 -->
-                        <div class="text-xl font-black text-black leading-relaxed whitespace-pre-wrap break-all">
-                            ${escapeHtml(memo.content)}
-                        </div>
-
-                        <!-- 需求 6: 備忘錄後面僅加 2 個按鈕 (1.刪除 2.時間提醒設定) -->
-                        <div class="grid grid-cols-2 gap-3 pt-2 border-t-3 border-black">
-                            <!-- 按鈕 1: 時間提醒設定 -->
-                            <button onclick="openReminderModal('${memo.id}')" class="h-14 bg-yellow-400 hover:bg-yellow-300 active:scale-95 text-black font-black text-lg sm:text-xl rounded-2xl border-3 border-black flex items-center justify-center gap-1 shadow">
-                                <i class="fa-solid fa-bell"></i>
-                                <span>🔔 設定提醒</span>
+                        <div class="flex gap-3 mt-4">
+                            <button onclick="openReminderModal(${m.id})" class="large-btn flex-1 bg-yellow-400 text-black border-2 border-black">
+                                🔔 設定提醒
                             </button>
-
-                            <!-- 按鈕 2: 刪除 (帶再確認功能) -->
-                            <button onclick="confirmDeleteMemo('${memo.id}')" class="h-14 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-black text-lg sm:text-xl rounded-2xl border-3 border-black flex items-center justify-center gap-1 shadow">
-                                <i class="fa-solid fa-trash-can"></i>
-                                <span>🗑️ 刪除</span>
+                            <button onclick="deleteMemo(${m.id})" class="large-btn flex-1 bg-red-600 text-white border-2 border-black">
+                                🗑️ 刪除
                             </button>
                         </div>
-
                     </div>
                 `;
             }).join('');
         }
 
-        // 4. 提醒 Modal 設定
-        function openReminderModal(id) {
-            const memo = memos.find(m => m.id === id);
-            if (!memo) return;
-
-            document.getElementById('currentMemoId').value = memo.id;
-            document.getElementById('reminderDatetime').value = memo.datetime || '';
-            
-            const modal = document.getElementById('reminderModal');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        function closeReminderModal() {
-            const modal = document.getElementById('reminderModal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        }
-
-        function saveReminderSetting() {
-            const id = document.getElementById('currentMemoId').value;
-            const datetime = document.getElementById('reminderDatetime').value;
-            const memo = memos.find(m => m.id === id);
-
-            if (memo) {
-                memo.datetime = datetime || null;
-                memo.triggered = false;
-                saveData();
-                renderMemos();
-                closeReminderModal();
-                showToast(datetime ? '已設定提醒時間！' : '已清除提醒時間');
+        function adjustFontSize(change) {
+            const currentSize = parseFloat(window.getComputedStyle(document.body).fontSize);
+            const newSize = currentSize + change;
+            if (newSize >= 18 && newSize <= 36) {
+                document.body.style.fontSize = newSize + 'px';
             }
-        }
-
-        function clearReminderSetting() {
-            document.getElementById('reminderDatetime').value = '';
-            saveReminderSetting();
-        }
-
-        // 5. 加到 Google 日曆
-        function addToGoogleCalendar() {
-            const id = document.getElementById('currentMemoId').value;
-            const datetime = document.getElementById('reminderDatetime').value;
-            const memo = memos.find(m => m.id === id);
-
-            if (!memo) return;
-
-            const title = encodeURIComponent('備忘提醒');
-            const details = encodeURIComponent(memo.content);
-            let dateParam = '';
-
-            if (datetime) {
-                const startDate = new Date(datetime);
-                const endDate = new Date(startDate.getTime() + 30 * 60 * 1000);
-                const startIso = startDate.toISOString().replace(/-|:|\.\d\d\d/g, "");
-                const endIso = endDate.toISOString().replace(/-|:|\.\d\d\d/g, "");
-                dateParam = `&dates=${startIso}/${endIso}`;
-            }
-
-            const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}${dateParam}`;
-            window.open(url, '_blank');
-        }
-
-        // 6. 定時響鈴與通知檢查
-        function startReminderTimer() {
-            setInterval(() => {
-                const now = new Date();
-                memos.forEach(m => {
-                    if (m.datetime && !m.triggered) {
-                        const rTime = new Date(m.datetime);
-                        if (now >= rTime && (now - rTime) < 60000) {
-                            m.triggered = true;
-                            saveData();
-                            renderMemos();
-
-                            // 語音與對話框提示
-                            speakText(`提醒時間到了！${m.content}`);
-                            alert(`⏰ 備忘提醒時間到：\n\n${m.content}`);
-                        }
-                    }
-                });
-            }, 8000);
-        }
-
-        function speakText(text) {
-            if ('speechSynthesis' in window) {
-                const u = new SpeechSynthesisUtterance(text);
-                u.lang = 'zh-TW';
-                u.rate = 0.85;
-                window.speechSynthesis.speak(u);
-            }
-        }
-
-        function requestNotificationPermission() {
-            if ('Notification' in window) {
-                Notification.requestPermission().then(p => {
-                    if (p === 'granted') showToast('已開啟通知權限！');
-                    else showToast('通知權限未開啟');
-                });
-            }
-        }
-
-        // 輔助函式
-        function saveData() {
-            localStorage.setItem('elderly_voice_memos_v2', JSON.stringify(memos));
-        }
-
-        function showToast(msg) {
-            const toast = document.getElementById('toast');
-            document.getElementById('toastMsg').innerText = msg;
-            toast.classList.remove('translate-y-28', 'opacity-0');
-            toast.classList.add('translate-y-0', 'opacity-100');
-
-            setTimeout(() => {
-                toast.classList.remove('translate-y-0', 'opacity-100');
-                toast.classList.add('translate-y-28', 'opacity-0');
-            }, 3000);
-        }
-
-        function formatDatetime(dtStr) {
-            if (!dtStr) return '';
-            const dt = new Date(dtStr);
-            return `${dt.getMonth() + 1}月${dt.getDate()}日 ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
         }
 
         function escapeHtml(str) {
-            return str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
         }
+
+        // 初始化載入
+        renderMemos();
+        updateStats();
     </script>
 </body>
 </html>
