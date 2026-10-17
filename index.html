@@ -3,114 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>長輩專用大字版語音備忘錄</title>
+    <title>語音備忘錄</title>
+    <!-- 設定 iPhone 桌面 App 圖示（可替換為您的圖片） -->
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3209/3209265.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* 基礎字體放大與高對比設定 */
         body {
             font-size: 22px;
-            background-color: #ffffff;
-            color: #000000;
+            background-color: #f8fafc;
+            color: #0f172a;
         }
+        /* 精緻立體大按鈕樣式 */
         .large-btn {
             min-height: 64px;
             font-size: 22px;
             font-weight: bold;
-            border: 3px solid #000000;
-            border-radius: 12px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.1s;
+        }
+        .large-btn:active {
+            transform: scale(0.98);
         }
         .record-btn {
             min-height: 88px;
-            font-size: 28px;
+            font-size: 26px;
             font-weight: bold;
-            border: 4px solid #000000;
-            border-radius: 16px;
+            border-radius: 20px;
+            box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.3);
         }
-        input, textarea, select {
+        input, textarea {
             font-size: 22px !important;
-            border: 3px solid #000000 !important;
-            border-radius: 10px !important;
-            padding: 12px !important;
+            border: 2px solid #cbd5e1 !important;
+            border-radius: 14px !important;
+            padding: 14px !important;
+            background-color: #ffffff;
+        }
+        input:focus, textarea:focus {
+            border-color: #2563eb !important;
+            outline: none;
         }
     </style>
 </head>
-<body class="bg-white text-black p-4 max-w-xl mx-auto">
+<body class="p-4 max-w-xl mx-auto">
 
     <!-- 頂部標題與字體縮放控制 -->
-    <header class="flex justify-between items-center mb-4 pb-2 border-b-4 border-black">
-        <h1 class="text-3xl font-black">📝 語音備忘錄</h1>
+    <header class="flex justify-between items-center mb-6 pb-3 border-b-2 border-slate-200">
+        <h1 class="text-3xl font-black text-slate-800 flex items-center gap-2">📝 語音備忘錄</h1>
         <div class="flex gap-2">
-            <button onclick="adjustFontSize(2)" class="bg-gray-200 border-2 border-black px-4 py-2 font-bold text-xl rounded-lg">➕ 放大</button>
-            <button onclick="adjustFontSize(-2)" class="bg-gray-200 border-2 border-black px-4 py-2 font-bold text-xl rounded-lg">➖ 縮小</button>
+            <button onclick="adjustFontSize(2)" class="bg-white border-2 border-slate-300 px-3 py-1 font-bold text-lg rounded-xl shadow-sm">➕ 放大</button>
+            <button onclick="adjustFontSize(-2)" class="bg-white border-2 border-slate-300 px-3 py-1 font-bold text-lg rounded-xl shadow-sm">➖ 縮小</button>
         </div>
     </header>
 
-    <!-- 單行屏幕狀態列：全部備忘、待提醒、已過期 -->
-    <section class="grid grid-cols-3 gap-2 mb-6 text-center">
-        <div class="bg-yellow-100 border-3 border-black p-3 rounded-xl font-bold">
-            <div class="text-lg">全部備忘</div>
-            <div id="stat-total" class="text-3xl">0</div>
+    <!-- 狀態統計列 -->
+    <section class="grid grid-cols-3 gap-3 mb-6 text-center">
+        <div class="bg-amber-50 border-2 border-amber-200 p-3 rounded-2xl shadow-sm font-bold">
+            <div class="text-base text-amber-800">全部備忘</div>
+            <div id="stat-total" class="text-3xl text-amber-900">0</div>
         </div>
-        <div class="bg-green-100 border-3 border-black p-3 rounded-xl font-bold">
-            <div class="text-lg">待提醒</div>
-            <div id="stat-pending" class="text-3xl">0</div>
+        <div class="bg-emerald-50 border-2 border-emerald-200 p-3 rounded-2xl shadow-sm font-bold">
+            <div class="text-base text-emerald-800">待提醒</div>
+            <div id="stat-pending" class="text-3xl text-emerald-900">0</div>
         </div>
-        <div class="bg-red-100 border-3 border-black p-3 rounded-xl font-bold">
-            <div class="text-lg">已過期</div>
-            <div id="stat-expired" class="text-3xl">0</div>
+        <div class="bg-rose-50 border-2 border-rose-200 p-3 rounded-2xl shadow-sm font-bold">
+            <div class="text-base text-rose-800">已過期</div>
+            <div id="stat-expired" class="text-3xl text-rose-900">0</div>
         </div>
     </section>
 
     <!-- 錄音與新增輸入區 -->
-    <section class="mb-6 bg-gray-50 p-4 border-3 border-black rounded-2xl shadow-md">
-        <button id="record-btn" onclick="toggleRecord()" class="record-btn w-full bg-red-500 text-white mb-4 flex items-center justify-center gap-3">
+    <section class="mb-6 bg-white p-5 border-2 border-slate-200 rounded-3xl shadow-lg">
+        <button id="record-btn" onclick="toggleRecord()" class="record-btn w-full bg-rose-500 hover:bg-rose-600 text-white mb-5 flex items-center justify-center gap-3">
             🎤 <span>按下開始說話</span>
         </button>
         
         <div class="mb-4">
-            <label class="block font-bold mb-2">備忘內容（可語音或打字）：</label>
+            <label class="block font-bold mb-2 text-slate-700">備忘內容（可語音或打字）：</label>
             <textarea id="memo-input" rows="3" class="w-full" placeholder="點擊上方按鈕說話，或在此輸入內容..."></textarea>
         </div>
 
-        <div class="mb-4">
-            <label class="block font-bold mb-2">預定提醒時間（選填）：</label>
+        <div class="mb-5">
+            <label class="block font-bold mb-2 text-slate-700">預定提醒時間（選填）：</label>
             <input type="datetime-local" id="memo-time" class="w-full">
         </div>
 
-        <button onclick="saveMemo()" class="large-btn w-full bg-blue-600 text-white">
+        <button onclick="saveMemo()" class="large-btn w-full bg-blue-600 hover:bg-blue-700 text-white">
             💾 新增儲存備忘錄
         </button>
     </section>
 
-    <hr class="border-t-4 border-black my-6">
+    <hr class="border-t-2 border-slate-200 my-6">
 
-    <!-- 備忘錄列表（緊逐條顯示） -->
+    <!-- 備忘錄列表 -->
     <section>
-        <h2 class="text-2xl font-black mb-4">📋 您的備忘錄清單</h2>
-        <div id="memo-list" class="space-y-4">
-            <!-- 動態插入備忘錄卡片 -->
-        </div>
+        <h2 class="text-2xl font-black mb-4 text-slate-800">📋 您的備忘錄清單</h2>
+        <div id="memo-list" class="space-y-4"></div>
     </section>
 
-    <!-- 增修訂/編輯備忘錄與時間設定彈窗 -->
-    <div id="edit-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-white border-4 border-black p-6 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h3 class="text-2xl font-black mb-4">✏️ 修改與設定備忘錄</h3>
+    <!-- 編輯彈窗 -->
+    <div id="edit-modal" class="fixed inset-0 bg-slate-900 bg-opacity-50 hidden flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+        <div class="bg-white border-2 border-slate-200 p-6 rounded-3xl w-full max-w-md shadow-2xl">
+            <h3 class="text-2xl font-black mb-4 text-slate-800">✏️ 修改與設定備忘錄</h3>
             
             <div class="mb-4">
-                <label class="block font-bold mb-2">修改備忘內容：</label>
+                <label class="block font-bold mb-2 text-slate-700">修改備忘內容：</label>
                 <textarea id="edit-memo-text" rows="4" class="w-full"></textarea>
             </div>
 
             <div class="mb-6">
-                <label class="block font-bold mb-2">修改提醒時間：</label>
+                <label class="block font-bold mb-2 text-slate-700">修改提醒時間：</label>
                 <input type="datetime-local" id="edit-memo-time" class="w-full">
             </div>
 
             <div class="flex flex-col gap-3">
-                <button onclick="confirmEditMemo()" class="large-btn bg-green-600 text-white">💾 保存修改內容</button>
-                <button onclick="syncToGoogleCalendarModal()" class="large-btn bg-yellow-400 text-black border-2 border-black">📅 同步至 Google 日曆</button>
-                <button onclick="closeEditModal()" class="large-btn bg-gray-300 text-black">❌ 取消</button>
+                <button onclick="confirmEditMemo()" class="large-btn bg-emerald-600 hover:bg-emerald-700 text-white">💾 保存修改內容</button>
+                <button onclick="syncToGoogleCalendarModal()" class="large-btn bg-amber-400 hover:bg-amber-500 text-slate-900">📅 同步至 Google 日曆</button>
+                <button onclick="closeEditModal()" class="large-btn bg-slate-200 hover:bg-slate-300 text-slate-800">❌ 取消</button>
             </div>
         </div>
     </div>
@@ -121,7 +130,6 @@
         let recognition = null;
         let isRecording = false;
 
-        // 初始化語音辨識
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
@@ -141,8 +149,8 @@
                 isRecording = false;
                 const btn = document.getElementById('record-btn');
                 btn.innerHTML = '🎤 <span>按下開始說話</span>';
-                btn.classList.remove('bg-yellow-400', 'animate-pulse');
-                btn.classList.add('bg-red-500');
+                btn.classList.remove('bg-amber-400', 'animate-pulse');
+                btn.classList.add('bg-rose-500');
             };
         }
 
@@ -156,8 +164,8 @@
                 recognition.start();
                 isRecording = true;
                 btn.innerHTML = '🔴 <span>正在聆聽中... (再按一次停止)</span>';
-                btn.classList.remove('bg-red-500');
-                btn.classList.add('bg-yellow-400', 'animate-pulse');
+                btn.classList.remove('bg-rose-500');
+                btn.classList.add('bg-amber-400', 'animate-pulse');
             } else {
                 recognition.stop();
                 isRecording = false;
@@ -188,7 +196,6 @@
             alert('💾 備忘錄已成功儲存！');
         }
 
-        // 開啟增修訂編輯彈窗
         function openEditModal(id) {
             currentEditingId = id;
             const memo = memos.find(m => m.id === id);
@@ -204,7 +211,6 @@
             currentEditingId = null;
         }
 
-        // 確認並保存修改內容
         function confirmEditMemo() {
             const newText = document.getElementById('edit-memo-text').value.trim();
             const newTime = document.getElementById('edit-memo-time').value;
@@ -224,7 +230,6 @@
             }
         }
 
-        // 同步至 Google 日曆
         function syncToGoogleCalendarModal() {
             const newText = document.getElementById('edit-memo-text').value.trim();
             const newTime = document.getElementById('edit-memo-time').value;
@@ -240,7 +245,6 @@
             window.open(gCalUrl, '_blank');
         }
 
-        // 刪除二次確認功能
         function deleteMemo(id) {
             if (confirm('⚠️ 請問您確定要刪除這筆備忘錄嗎？刪除後無法復原。')) {
                 memos = memos.filter(m => m.id !== id);
@@ -278,7 +282,7 @@
         function renderMemos() {
             const listEl = document.getElementById('memo-list');
             if (memos.length === 0) {
-                listEl.innerHTML = '<div class="text-center p-6 bg-gray-50 border-2 border-black rounded-xl font-bold">目前沒有任何備忘錄</div>';
+                listEl.innerHTML = '<div class="text-center p-6 bg-white border-2 border-slate-200 rounded-2xl font-bold text-slate-400">目前沒有任何備忘錄</div>';
                 return;
             }
 
@@ -287,19 +291,19 @@
                 let timeBadge = '';
                 if (m.time) {
                     const isExp = new Date(m.time) <= now;
-                    timeBadge = `<div class="mt-2 text-lg font-bold ${isExp ? 'text-red-600' : 'text-blue-700'}">⏰ 提醒時間：${m.time.replace('T', ' ')} ${isExp ? '(已過期)' : ''}</div>`;
+                    timeBadge = `<div class="mt-2 text-lg font-bold ${isExp ? 'text-rose-600' : 'text-blue-600'}">⏰ 提醒時間：${m.time.replace('T', ' ')} ${isExp ? '(已過期)' : ''}</div>`;
                 }
 
                 return `
-                    <div class="bg-yellow-50 border-3 border-black p-4 rounded-2xl shadow-sm">
-                        <div class="text-2xl font-bold mb-2">${escapeHtml(m.text)}</div>
-                        <div class="text-sm text-gray-600 mb-2">建立/更新：${m.created}</div>
+                    <div class="bg-amber-50/60 border-2 border-amber-200 p-4 rounded-2xl shadow-sm">
+                        <div class="text-2xl font-bold mb-2 text-slate-900">${escapeHtml(m.text)}</div>
+                        <div class="text-sm text-slate-500 mb-2">建立/更新：${m.created}</div>
                         ${timeBadge}
                         <div class="flex gap-3 mt-4">
-                            <button onclick="openEditModal(${m.id})" class="large-btn flex-1 bg-yellow-400 text-black border-2 border-black">
+                            <button onclick="openEditModal(${m.id})" class="large-btn flex-1 bg-amber-400 hover:bg-amber-500 text-slate-900">
                                 ✏️ 增修 / 提醒
                             </button>
-                            <button onclick="deleteMemo(${m.id})" class="large-btn flex-1 bg-red-600 text-white border-2 border-black">
+                            <button onclick="deleteMemo(${m.id})" class="large-btn flex-1 bg-rose-600 hover:bg-rose-700 text-white">
                                 🗑️ 刪除
                             </button>
                         </div>
@@ -322,7 +326,6 @@
             );
         }
 
-        // 初始化載入
         renderMemos();
         updateStats();
     </script>
